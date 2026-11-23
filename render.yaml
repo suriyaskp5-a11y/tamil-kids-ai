@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: tamil-kids-ai-backend
+    env: python
+    region: singapore
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://your-vercel-app.vercel.app,http://localhost:5173
+      - key: DATABASE_URL
+        value: sqlite:///./tamil_kids_ai.db
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DAILY_PUBLISH_TIME
+        value: "09:00"
+      - key: TIMEZONE
+        value: "Asia/Kolkata"
+      - key: AUTO_PUBLISH_ENABLED
+        value: "false"
+      - key: REQUIRE_MANUAL_APPROVAL
+        value: "true"
