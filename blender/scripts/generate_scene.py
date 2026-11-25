@@ -34,7 +34,7 @@ def build_scene(scene_data, output_path):
     # Calculate frame length based on duration
     duration = int(scene_data.get("duration_seconds", 30))
     scene.frame_start = 1
-    scene.frame_end = min(duration * 24, 720) # Cap preview/render if low resource
+    scene.frame_end = duration * 24
 
     # Use EEVEE or Workbench for low-resource fast rendering
     try:

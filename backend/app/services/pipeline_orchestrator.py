@@ -52,27 +52,37 @@ class PipelineOrchestrator:
         self.db.commit()
         self.db.refresh(job)
 
+        return self.run_job(job.id)
+
+    def run_job(self, job_id: int) -> Optional[VideoJob]:
+        """
+        Runs production stages for an existing job. Used by the API background task
+        and the render worker. Always records failures (status, message, traceback).
+        """
+        job = self.db.query(VideoJob).filter(VideoJob.id == job_id).first()
+        if not job:
+            logger.error(f"Job #{job_id} not found")
+            return None
         try:
-            self._execute_production_stages(job, story, script)
+            if not job.story or not job.story.script:
+                raise RuntimeError("Job has no story/script - scene planning did not complete")
+            job.status = "in_progress"
+            job.started_at = job.started_at or datetime.now(timezone.utc)
+            self.db.commit()
+            self._execute_production_stages(job, job.story, job.story.script)
         except Exception as e:
+            self.db.rollback()
+            failed_stage = job.stage
             error_trace = traceback.format_exc()
-            logger.error(f"Pipeline job #{job.id} failed: {e}\n{error_trace}")
+            logger.error(f"Pipeline job #{job_id} failed at stage '{failed_stage}': {e}\n{error_trace}")
             job.status = "failed"
             job.stage = "failed"
-            job.error_message = str(e)
-            
-            # Log error
-            err_log = ErrorLog(
-                job_id=job.id,
-                level="ERROR",
-                stage=job.stage,
-                message=str(e),
-                stack_trace=error_trace
-            )
-            self.db.add(err_log)
+            job.error_message = f"[{failed_stage}] {e}"[:2000]
+            self.db.add(ErrorLog(
+                job_id=job.id, level="ERROR", stage=failed_stage,
+                message=str(e), stack_trace=error_trace
+            ))
             self.db.commit()
-            raise e
-
         return job
 
     def _execute_production_stages(self, job: VideoJob, story: Story, script: Script):
@@ -104,6 +114,8 @@ class PipelineOrchestrator:
 
         scene_clips = []
         scenes_data = script.scenes or []
+        if not scenes_data:
+            raise RuntimeError("Script has no scenes to render")
         for idx, sc in enumerate(scenes_data):
             scene_out_path = str(work_dir / f"scene_{idx + 1}.mp4")
             rendered_clip = self.blender_service.render_scene(sc, scene_out_path)
@@ -128,6 +140,9 @@ class PipelineOrchestrator:
             output_video_path=final_video_path,
             srt_subtitle_path=srt_path
         )
+
+        if not validation.get("valid"):
+            raise RuntimeError(f"Final video validation failed: {validation.get('error')}")
 
         # ---------------------------------------------------------
         # STAGE 4: Thumbnail Creation

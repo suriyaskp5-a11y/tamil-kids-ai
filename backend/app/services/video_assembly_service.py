@@ -71,6 +71,9 @@ class VideoAssemblyService:
         else:
             cmd.extend(["-map", "0:v", "-map", "1:a"])
 
+        # Hold the last frame if scenes are shorter than the narration; -shortest then ends at the audio
+        cmd.extend(["-vf", "tpad=stop_mode=clone:stop_duration=3600,format=yuv420p"])
+
         # Video encoding settings for YouTube: H.264, AAC, YUV420p
         cmd.extend([
             "-c:v", "libx264",

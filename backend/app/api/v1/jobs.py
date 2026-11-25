@@ -13,12 +13,8 @@ def run_pipeline_background(job_id: int):
     db = SessionLocal()
     try:
         orchestrator = PipelineOrchestrator(db)
-        job = db.query(VideoJob).filter(VideoJob.id == job_id).first()
-        if job and job.story:
-            script = job.story.script
-            orchestrator._execute_production_stages(job, job.story, script)
-    except Exception as e:
-        pass
+        # run_job() marks the job failed + logs the full traceback on any error
+        orchestrator.run_job(job_id)
     finally:
         db.close()
 
@@ -34,8 +30,8 @@ def list_jobs(
 
 @router.post("/trigger", response_model=JobOut)
 def trigger_new_pipeline(
+    background_tasks: BackgroundTasks,
     topic_id: Optional[int] = None,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

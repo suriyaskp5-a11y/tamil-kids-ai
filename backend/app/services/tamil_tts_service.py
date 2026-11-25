@@ -47,8 +47,11 @@ class TamilTTSService:
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     audio_file.write(chunk["data"])
-                elif chunk["type"] == "WordBoundary":
+                elif chunk["type"] in ("WordBoundary", "SentenceBoundary"):
                     sub_maker.feed(chunk)
+
+        if not os.path.exists(output_audio_path) or os.path.getsize(output_audio_path) == 0:
+            raise RuntimeError("Tamil TTS produced no audio (edge-tts returned empty file)")
 
         # Write SRT subtitle file
         srt_content = sub_maker.get_srt()

@@ -47,7 +47,7 @@ class BlenderService:
         # Check if Blender is truly runnable
         blender_available = False
         try:
-            res = subprocess.run([self.blender_bin, "--version"], capture_output=True, text=True, timeout=5)
+            res = subprocess.run([self.blender_bin, "--version"], capture_output=True, text=True, timeout=60)
             if res.returncode == 0:
                 blender_available = True
         except Exception:
@@ -68,10 +68,23 @@ class BlenderService:
                 "--output-video", str(out_file)
             ]
             logger.info(f"Rendering 3D scene in Blender: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
-            if temp_json.exists():
-                temp_json.unlink()
-            return str(out_file)
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=60 * 60)
+                if res.returncode != 0:
+                    raise RuntimeError(f"Blender exited {res.returncode}: {res.stderr[-800:] or res.stdout[-800:]}")
+                # Blender may append the frame range to the filename - find the real file
+                if not out_file.exists() or out_file.stat().st_size == 0:
+                    candidates = sorted(out_file.parent.glob(f"{out_file.stem}*.mp4"))
+                    if not candidates:
+                        raise RuntimeError(f"Blender finished but no video was written. Output: {res.stdout[-800:]}")
+                    candidates[0].replace(out_file)
+                return str(out_file)
+            except Exception as e:
+                logger.error(f"Blender render failed, using FFmpeg fallback scene instead: {e}")
+                return self._synthesize_kinetic_scene(scene_dict, str(out_file))
+            finally:
+                if temp_json.exists():
+                    temp_json.unlink()
         else:
             logger.info("Blender binary not found on host. Running zero-latency kinetic cartoon scene synthesizer.")
             return self._synthesize_kinetic_scene(scene_dict, str(out_file))
@@ -109,5 +122,7 @@ class BlenderService:
             output_path
         ]
         
-        subprocess.run(cmd, capture_output=True, check=True)
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0 or not Path(output_path).exists():
+            raise RuntimeError(f"FFmpeg scene synthesis failed: {res.stderr[-800:]}")
         return output_path

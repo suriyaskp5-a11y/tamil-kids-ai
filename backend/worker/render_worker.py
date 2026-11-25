@@ -27,12 +27,16 @@ def run_worker_loop():
         db = SessionLocal()
         try:
             # Query oldest pending/queued job
-            job = db.query(VideoJob).filter(VideoJob.status == "queued").order_by(VideoJob.id.asc()).first()
+            # API creates jobs as status="in_progress", stage="queued"; accept both styles
+            job = (
+                db.query(VideoJob)
+                .filter(VideoJob.stage == "queued", VideoJob.status.in_(["queued", "in_progress"]))
+                .order_by(VideoJob.id.asc())
+                .first()
+            )
             if job:
                 logger.info(f"Picked up job #{job.id} for story #{job.story_id}")
-                orchestrator = PipelineOrchestrator(db)
-                script = job.story.script
-                orchestrator._execute_production_stages(job, job.story, script)
+                PipelineOrchestrator(db).run_job(job.id)
             else:
                 time.sleep(5)
         except KeyboardInterrupt:
