@@ -91,37 +91,49 @@ class BlenderService:
 
     def _synthesize_kinetic_scene(self, scene_dict: Dict[str, Any], output_path: str) -> str:
         """
-        Creates an animated 3D-parallax animated scene clip using FFmpeg filters
-        with zooming, panning, and cartoon color atmosphere matching the scene location.
+        Low-memory animated scene (FFmpeg only). Safe for 512MB servers:
+        360p by default, ultrafast preset, single thread, no lookahead.
+        Resolution / FPS come from VIDEO_WIDTH / VIDEO_HEIGHT / VIDEO_FPS settings.
         """
         ffmpeg_cmd = self.assembly_service.ffmpeg_cmd
-        duration = scene_dict.get("duration_seconds", 15)
-        
-        # Color palette by lighting mood
-        mood = scene_dict.get("lighting_mood", "warm_morning")
-        bg_color = "0x2E7D32" if "forest" in scene_dict.get("location", "") else "0x0288D1"
+        try:
+            duration = max(1, int(float(scene_dict.get("duration_seconds", 15))))
+        except (TypeError, ValueError):
+            duration = 15
 
-        # FFmpeg filter generating smooth animated 1080p motion
-        # Uses testsrc + color + animated pan/zoom filter
-        filter_expr = (
-            f"color=c={bg_color}:s=1920x1080:d={duration}[bg];"
-            f"drawgrid=width=100:height=100:thickness=1:color=white@0.08[grid];"
-            f"[bg][grid]overlay[v]"
+        width = int(settings.VIDEO_WIDTH)
+        height = int(settings.VIDEO_HEIGHT)
+        fps = int(settings.VIDEO_FPS)
+
+        location = str(scene_dict.get("location", "")).lower()
+        sky = "0x1B5E20" if "forest" in location else "0x1A237E"
+        ground = "0x2E7D32"
+        sun_size = max(16, int(height * 0.28))
+
+        filter_complex = (
+            f"[0:v]drawbox=y=ih*0.6:color={ground}:width=iw:height=ih*0.4:t=fill[bg];"
+            f"[bg][1:v]overlay="
+            f"x='(W-w)/2+sin(t*2)*W*0.10':"
+            f"y='(H-h)/2+cos(t*3)*H*0.04':eval=frame,format=yuv420p[v]"
         )
 
         cmd = [
-            ffmpeg_cmd, "-y",
-            "-f", "lavfi", "-i", f"color=c=0x1A237E:s=1920x1080:d={duration}",
-            "-vf", (
-                f"drawbox=y=ih*0.6:color=0x2E7D32:width=iw:height=ih*0.4:t=fill,"
-                f"drawbox=x='(w-400)/2+sin(t*2)*80':y='(h-500)/2+cos(t*3)*20':color=0xFFD54F:width=300:height=300:t=fill"
-            ),
+            ffmpeg_cmd, "-y", "-hide_banner", "-loglevel", "error", "-nostats",
+            "-f", "lavfi", "-i", f"color=c={sky}:s={width}x{height}:r={fps}:d={duration}",
+            "-f", "lavfi", "-i", f"color=c=0xFFD54F:s={sun_size}x{sun_size}:r={fps}:d={duration}",
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
             "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-threads", "1",
+            "-x264-params", "rc-lookahead=0:ref=1:bframes=0",
+            "-crf", "28",
+            "-r", str(fps),
             "-t", str(duration),
-            "-pix_fmt", "yuv420p",
-            output_path
+            "-an",
+            output_path,
         ]
-        
+
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0 or not Path(output_path).exists():
             raise RuntimeError(f"FFmpeg scene synthesis failed: {res.stderr[-800:]}")

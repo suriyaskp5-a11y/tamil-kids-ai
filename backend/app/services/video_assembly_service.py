@@ -50,7 +50,7 @@ class VideoAssemblyService:
     ) -> Dict[str, any]:
         """
         Combines rendered scene video clips, mixes narration and subtle BGM,
-        burns subtitles if provided, and exports a YouTube-ready 1080p MP4.
+        burns subtitles if provided, and exports a low-memory MP4 (resolution from settings).
         """
         output_path = Path(output_video_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -62,7 +62,7 @@ class VideoAssemblyService:
                 f.write(f"file '{Path(p).resolve().as_posix()}'\n")
 
         # 2. Build FFmpeg command with complex audio filter
-        cmd = [self.ffmpeg_cmd, "-y"]
+        cmd = [self.ffmpeg_cmd, "-y", "-hide_banner", "-loglevel", "error", "-nostats"]
         
         # Input 0: Concatenated video stream
         cmd.extend(["-f", "concat", "-safe", "0", "-i", str(concat_txt_path)])
@@ -89,11 +89,14 @@ class VideoAssemblyService:
         # Video encoding settings for YouTube: H.264, AAC, YUV420p
         cmd.extend([
             "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "22",
+            "-preset", "ultrafast",
+            "-threads", "1",
+            "-x264-params", "rc-lookahead=0:ref=1:bframes=0",
+            "-crf", "28",
+            "-r", str(settings.VIDEO_FPS),
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
-            "-b:a", "192k",
+            "-b:a", "128k",
             "-shortest",
             str(output_video_path)
         ])

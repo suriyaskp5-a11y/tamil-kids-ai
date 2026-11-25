@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     BLENDER_PATH: str = "blender"
     FFMPEG_PATH: str = ""
     TARGET_VIDEO_DURATION_MINUTES: int = 10
-    VIDEO_FPS: int = 24
-    VIDEO_WIDTH: int = 1920
-    VIDEO_HEIGHT: int = 1080
+    VIDEO_FPS: int = 15
+    VIDEO_WIDTH: int = 640
+    VIDEO_HEIGHT: int = 360
     
     DAILY_PUBLISH_TIME: str = "09:00"
     TIMEZONE: str = "Asia/Kolkata"
