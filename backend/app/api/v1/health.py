@@ -27,10 +27,11 @@ def health_check(db: Session = Depends(get_db)):
     # 3. FFmpeg check
     ffmpeg_available = False
     try:
-        import imageio_ffmpeg
-        ffmpeg_available = bool(imageio_ffmpeg.get_ffmpeg_exe())
+        from app.services.video_assembly_service import VideoAssemblyService
+        VideoAssemblyService().check_ffmpeg()
+        ffmpeg_available = True
     except Exception:
-        ffmpeg_available = shutil.which("ffmpeg") is not None
+        ffmpeg_available = False
         
     # 4. Gemini API key configured
     gemini_ready = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your_gemini_api_key_here")

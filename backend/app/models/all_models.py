@@ -105,6 +105,10 @@ class VideoJob(Base):
     video = relationship("GeneratedVideo", back_populates="job", uselist=False)
     logs = relationship("ErrorLog", back_populates="job")
 
+    @property
+    def video_ready(self) -> bool:
+        return self.video is not None and bool(self.video.video_path)
+
 class GeneratedVideo(Base):
     __tablename__ = "generated_videos"
     

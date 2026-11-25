@@ -422,23 +422,46 @@ export default function App() {
               <h2 className="text-xl font-bold text-white">தயாரிப்பு மற்றும் பதிவேற்ற பணிகள் (Jobs Log)</h2>
               <div className="space-y-3">
                 {jobs.map(j => (
-                  <div key={j.id} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-white">பணி #{j.id}</span>
-                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">
-                          நிலை: {j.stage}
-                        </span>
+                  <div key={j.id} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-white">பணி #{j.id}</span>
+                          <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                            நிலை: {j.stage}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">கதை அடையாள எண்: #{j.story_id}</p>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">கதை அடையாள எண்: #{j.story_id}</p>
-                    </div>
-
-                    <div className="flex items-center space-x-4">
                       <div className="text-right">
-                        <span className="text-sm font-bold text-amber-400">{j.progress}%</span>
+                        <span className={`text-sm font-bold ${j.status === 'failed' ? 'text-red-400' : 'text-amber-400'}`}>{j.progress}%</span>
                         <div className="text-[11px] text-slate-500">{j.status}</div>
                       </div>
                     </div>
+
+                    {j.status === 'failed' && j.error_message && (
+                      <div className="p-3 bg-red-950/40 border border-red-900/60 rounded-xl text-xs text-red-300 break-words">
+                        ❌ {j.error_message}
+                      </div>
+                    )}
+
+                    {j.video_ready && (
+                      <div className="space-y-3">
+                        <video
+                          controls
+                          preload="metadata"
+                          className="w-full rounded-xl bg-black"
+                          src={api.videoUrl(j.id, true)}
+                        />
+                        <a
+                          href={api.videoUrl(j.id)}
+                          download
+                          className="block text-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl"
+                        >
+                          ⬇️ வீடியோவை பதிவிறக்கு (Download Video)
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -86,6 +86,7 @@ class PipelineOrchestrator:
         return job
 
     def _execute_production_stages(self, job: VideoJob, story: Story, script: Script):
+        self.assembly_service.check_ffmpeg()  # fail fast with a clear message
         work_dir = settings.TEMP_DIR / f"job_{job.id}"
         work_dir.mkdir(parents=True, exist_ok=True)
 

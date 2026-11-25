@@ -28,6 +28,18 @@ class VideoAssemblyService:
         except Exception:
             return "ffmpeg"
 
+    def check_ffmpeg(self) -> None:
+        """Raise a clear error if FFmpeg can't actually be executed."""
+        try:
+            r = subprocess.run([self.ffmpeg_cmd, "-version"], capture_output=True, text=True, timeout=20)
+            if r.returncode != 0:
+                raise RuntimeError(r.stderr[-300:])
+        except Exception as e:
+            raise RuntimeError(
+                f"FFmpeg is not working ('{self.ffmpeg_cmd}'): {e}. "
+                "Termux: run 'pkg install ffmpeg' and set FFMPEG_PATH=$PREFIX/bin/ffmpeg in backend/.env"
+            )
+
     def assemble_final_video(
         self,
         scene_video_paths: List[str],

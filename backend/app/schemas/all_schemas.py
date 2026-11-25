@@ -97,6 +97,7 @@ class JobOut(BaseModel):
     error_message: Optional[str] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    video_ready: bool = False
     class Config:
         from_attributes = True
 

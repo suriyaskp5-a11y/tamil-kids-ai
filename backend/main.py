@@ -33,6 +33,15 @@ def init_db():
             db.add(admin_user)
             db.commit()
             logger.info(f"Default admin user created: {settings.ADMIN_USERNAME}")
+        # Jobs left "in_progress" by a crash/restart can never finish - mark them failed
+        from app.models.all_models import VideoJob
+        stuck = db.query(VideoJob).filter(VideoJob.status == "in_progress").all()
+        for j in stuck:
+            j.status = "failed"
+            j.error_message = f"Interrupted at stage '{j.stage}' (server restarted). Trigger a new job."
+        if stuck:
+            db.commit()
+            logger.warning(f"Marked {len(stuck)} interrupted job(s) as failed")
     finally:
         db.close()
 

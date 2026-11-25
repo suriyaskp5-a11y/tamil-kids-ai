@@ -80,6 +80,12 @@ export const api = {
     return this.request(`/stories/generate/${topicId}`, { method: 'POST' });
   },
 
+  // Video download / preview URL (JWT in query because <a>/<video> can't send headers)
+  videoUrl(jobId, inline = false) {
+    const t = encodeURIComponent(this.getToken() || '');
+    return `${BASE_URL}/jobs/${jobId}/download?token=${t}${inline ? '&inline=true' : ''}`;
+  },
+
   // Jobs
   async getJobs() {
     return this.request('/jobs/');
